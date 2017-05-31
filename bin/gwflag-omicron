@@ -37,6 +37,7 @@ import numpy
 
 import ConfigParser
 import sys
+import subprocess
 
 from gwflag import (core,vetconfig)
 from gwflag import cli as cliflag
@@ -51,6 +52,8 @@ cliflag.add_padding_arguments(parser)
 parser.add_argument('-o', '--output-dir', type=os.path.abspath,
                     default=os.curdir,
                     help='output directory for analysis, default: %(default)s')
+parser.add_argument('--vet', action='store_true', default=False,
+                    help='run VET analysis, default: %(default)s')
 parser.add_argument('-v', '--verbose', action='store_true', default=False,
                     help='print verbose output, default: %(default)s')
 args = parser.parse_args()
@@ -109,14 +112,21 @@ print('writing xml')
 
 flag_segments.write(segxml,overwrite=True)
 
+#======== .ini file =======================
+
 iniparser = vetconfig.configinit(args.threshold,args.ifo,args.main_channel,
                                  xmlpath,snr=['8','20','100'])
 flagini = '%s-VET_CONFIG-%s.ini' % (chanstr, gpsstr)
 with open(flagini, 'w') as f:
     iniparser.write(f)
 
+#======== gwsumm =======================
 
-
-
-
-
+gwsumm_args = ['gw_summary',
+               'gps', str(args.gpsstart), str(args.gpsend),
+               '-f', str(flagini),
+               '-o', str(args.output_dir)]
+if args.verbose:
+    gwsumm_args.append('--verbose')
+if args.vet:
+    p = subprocess.Popen(gwsumm_args)
