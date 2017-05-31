@@ -44,10 +44,10 @@ from gwflag import cli as cliflag
 parser = cli.create_parser(description=__doc__)
 cli.add_gps_start_stop_arguments(parser)
 cli.add_ifo_option(parser)
-cliflag.add_threshold_arguments(parser)
-cliflag.add_padding_arguments(parser)
 cliflag.add_channel_option(parser)
 cliflag.add_state_option(parser)
+cliflag.add_threshold_arguments(parser)
+cliflag.add_padding_arguments(parser)
 parser.add_argument('-o', '--output-dir', type=os.path.abspath,
                     default=os.curdir,
                     help='output directory for analysis, default: %(default)s')
