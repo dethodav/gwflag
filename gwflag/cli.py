@@ -20,6 +20,20 @@ import sys
 import os
 from gwdetchar import const
 
+def add_channel_option(parser, **kwargs):
+    """Add a `-c/--main-channel` option to this given parser
+    """
+    kwargs.setdefault('help', 'name of main (h(t)) channel, default: %(default)s')
+    return parser.add_argument('-c', '--main-channel',
+                    default='%s:GDS-CALIB_STRAIN' % const.IFO, **kwargs)
+
+def add_state_option(parser, **kwargs):
+    """Add a `-a/--state-flag` option to this given parser
+    """
+    kwargs.setdefault('help', 'restrict search to times when FLAG was active')
+    return parser.add_argument('-a', '--state-flag', metavar='FLAG',
+                    default='%s:DMT-ANALYSIS_READY:1' % const.IFO, **kwargs)
+
 def add_threshold_arguments(parser, **kwargs):
     """Add `threshold` and `threshold-multiplier` arguments to the given parser
     """
@@ -42,16 +56,3 @@ def add_padding_arguments(parser, **kwargs):
 
     return a, b
 
-def add_channel_option(parser, **kwargs):
-    """Add a `-c/--main-channel` option to this given parser
-    """
-    kwargs.setdefault('help', 'name of main (h(t)) channel, default: %(default)s')
-    return parser.add_argument('-c', '--main-channel',
-                    default='%s:GDS-CALIB_STRAIN' % const.IFO, **kwargs)
-
-def add_state_option(parser, **kwargs):
-    """Add a `-a/--state-flag` option to this given parser
-    """
-    kwargs.setdefault('help', 'restrict search to times when FLAG was active')
-    return parser.add_argument('-a', '--state-flag', metavar='FLAG',
-                    default='%s:DMT-ANALYSIS_READY:1' % const.IFO, **kwargs)

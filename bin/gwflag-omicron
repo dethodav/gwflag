@@ -39,29 +39,18 @@ import ConfigParser
 import sys
 
 from gwflag import (core,vetconfig)
+from gwflag import cli as cliflag
 
 parser = cli.create_parser(description=__doc__)
 cli.add_gps_start_stop_arguments(parser)
 cli.add_ifo_option(parser)
-parser.add_argument('-c', '--main-channel',
-                    default='%s:GDS-CALIB_STRAIN' % const.IFO,
-                    help='name of main (h(t)) channel, default: %(default)s')
-parser.add_argument('-t', '--threshold', nargs='+', default=100.,
-                    help='threshold, or list of thresholds, to produce flags with, '
-                         ' (unit depends on method and channel choice)')
-parser.add_argument('-e', '--threshold-multiplier', type=int, default=0,
-                    help='power of 10 for threshold, '
-                         'default: 0')
-parser.add_argument('-a', '--state-flag', metavar='FLAG',
-                    default='%s:DMT-ANALYSIS_READY:1' % const.IFO,
-                    help='restrict search to times when FLAG was active')
+cliflag.add_threshold_arguments(parser)
+cliflag.add_padding_arguments(parser)
+cliflag.add_channel_option(parser)
+cliflag.add_state_option(parser)
 parser.add_argument('-o', '--output-dir', type=os.path.abspath,
                     default=os.curdir,
                     help='output directory for analysis, default: %(default)s')
-parser.add_argument('-sf', '--segment-end-pad', type=int, default=0,
-                    help='amount of time to add to the end of each segment')
-parser.add_argument('-si', '--segment-start-pad', type=int, default=0,
-                    help='amount of time to add to the start of each segment')
 parser.add_argument('-v', '--verbose', action='store_true', default=False,
                     help='print verbose output, default: %(default)s')
 args = parser.parse_args()
