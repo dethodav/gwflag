@@ -58,6 +58,10 @@ parser.add_argument('-a', '--state-flag', metavar='FLAG',
 parser.add_argument('-o', '--output-dir', type=os.path.abspath,
                     default=os.curdir,
                     help='output directory for analysis, default: %(default)s')
+parser.add_argument('-sf', '--segment-end-pad', type=int, default=0,
+                    help='amount of time to add to the end of each segment')
+parser.add_argument('-si', '--segment-start-pad', type=int, default=0,
+                    help='amount of time to add to the start of each segment')
 parser.add_argument('-v', '--verbose', action='store_true', default=False,
                     help='print verbose output, default: %(default)s')
 args = parser.parse_args()
@@ -93,13 +97,11 @@ xmlpath = os.path.join(args.output_dir,segxml)
 files = find_trigger_files(args.main_channel, 'omicron',int(args.gpsstart),int(args.gpsend))
 events = EventTable.read(files, format='ligolw.sngl_burst')
 flag_segments = DataQualityDict((m, []) for m in args.threshold)
-iniparser = ConfigParser.SafeConfigParser()
-configinit(iniparser,snr=['8','20','100'])
 
 if args.verbose:
-    gprint("Checking all thresholds... 0/%d thresholds checked" % len(thresh), end='\r')
+    gprint("Checking all thresholds... 0/%d thresholds checked" % len(args.threshold), end='\r')
 
-for i  in range(0,len(thresh)):
+for i  in range(0,len(args.threshold)):
     time = []
     loud = events['snr'] > int(args.threshold[i])
     loud_events = events[loud]
@@ -107,20 +109,22 @@ for i  in range(0,len(thresh)):
     for z in event_times:
         time.append(z)
 
-    FlagWrite(args,time,flag_segments)
-    configflagtab(iniparser,args.threshold[i],args.ifo,args.main_channel,xmlpath)
+    core.FlagWrite(args,time,args.threshold[i],flag_segments)
     if args.verbose:
            gprint("Checking all thresholds... %d/%d thresholds checked"
-              % (i+1, len(thresh)), end='\r')
+              % (i+1, len(args.threshold)), end='\r')
 if args.verbose:
-    gprint("Checking all thresholds... {0}/{0} thresholds checked".format(len(thresh)))
+    gprint("Checking all thresholds... {0}/{0} thresholds checked".format(len(args.threshold)))
 
 print('writing xml')
 
 flag_segments.write(segxml,overwrite=True)
 
-
-iniparser.write(sys.stdout)
+iniparser = vetconfig.configinit(args.threshold,args.ifo,args.main_channel,
+                                 xmlpath,snr=['8','20','100'])
+flagini = '%s-VET_CONFIG-%s.ini' % (chanstr, gpsstr)
+with open(flagini, 'w') as f:
+    iniparser.write(f)
 
 
 

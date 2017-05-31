@@ -18,30 +18,11 @@
 
 import ConfigParser
 import sys
+import os
 
 
-#parser = ConfigParser.SafeConfigParser()
 
-def configinit(parser,snr=['8','20','100']):
-  parser.add_section('plugins')
-  parser.set('plugins','gwvet.tabs','')
-
-  parser.add_section('states')
-  parser.set('states','Science','%(ifo)s:DMT-ANALYSIS_READY:1')
-
-  parser.add_section('segment-database')
-  parser.set('segment-database','url','https://segments.ligo.org')
-
-  parser.add_section('omicron')
-  parser.set('omicron','columns','time,snr,peak_frequency')
-  parser.set('omicron','ligolw_columns','peak_time,peak_time_ns,snr,peak_frequency')
-
-
-  parser.add_section('DEFAULT')
-  parser.set('DEFAULT','type','veto-flag')
-  parser.set('DEFAULT','event-channel','%(ifo)s:GDS-CALIB_STRAIN')
-  parser.set('DEFAULT','event-generator','Omicron')
-
+def configinit(thresholds,ifo,channel,segxml,snr=['8','20','100']):
   metrics = """ 'Deadtime',
            'Efficiency',
            'Efficiency/Deadtime,
@@ -51,28 +32,44 @@ def configinit(parser,snr=['8','20','100']):
              'Efficiency/Deadtime | SNR>=%s',
              """ % (i,i)
       metrics += line      
-  metric += """'Use percentage',
+  metrics += """'Use percentage',
             'Loudest event by SNR'
             """
 
-  parser.set('DEFAULT','metrics',metrics)
+  defaults = {'type':'veto-flag',
+              'event-channel':'%(ifo)s:GDS-CALIB_STRAIN',
+              'event-generator':'Omicron',
+              'metrics':metrics}
 
+  parser = ConfigParser.SafeConfigParser(defaults)
+              
+  parser.add_section('plugins')
+  parser.set('plugins','gwvet.tabs','')
 
+  parser.add_section('states')
+  parser.set('states','science','%(ifo)s:DMT-ANALYSIS_READY:1')
 
-def configflagtab(parser,threshold,ifo,channel,xml):
+  parser.add_section('segment-database')
+  parser.set('segment-database','url','https://segments.ligo.org')
 
-  tab = 'tab ' + str(threshold)
-  name = str(channel)+str(threshold)
-  shortname = str(threshold)
-  flag = str(ifo)+":DCH-"+str(channel)+"_"+str(threshold)+":1"
-  xml = str(xml)
+  parser.add_section('omicron')
+  parser.set('omicron','columns','time,snr,peak_frequency')
+  parser.set('omicron','ligolw_columns','peak_time,peak_time_ns,snr,peak_frequency')
 
-  parser.add_section(tab)
-  parser.set(tab,'name',name)
-  parser.set(tab,'shortname',shortname)
-  parser.set(tab,'flags',)
-  parser.set(tab,'states','')
-  parser.set(tab,'segmentfile','')
+  for i in thresholds:
+      tab = 'tab-' + str(i)
+      name = str(channel)+str(i)
+      shortname = str(i)
+      flag = str(ifo)+":DCH-"+str(channel)+"_"+str(i)+":1"
+      xml = str(segxml)
 
+      parser.add_section(tab)
+      parser.set(tab,'name',name)
+      parser.set(tab,'shortname',shortname)
+      parser.set(tab,'flags',flag)
+      parser.set(tab,'states','science')
+      parser.set(tab,'segmentfile',xml)
+
+  return parser
 
 

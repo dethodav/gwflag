@@ -50,7 +50,8 @@ def ImportSegments(args):
         statea = SegmentList([span])
     return statea
 
-def FlagWrite(args,time,flag_segments):
+def FlagWrite(args,time,threshold,flag_segments):
+  step = 1
   segs = segments.segmentlist()
   segs.extend([segments.segment(int(t), int(t)+step) for t in time])
   segs = segs.coalesce()
@@ -60,10 +61,10 @@ def FlagWrite(args,time,flag_segments):
   end_time = []
   end_time.extend([t[1]+(args.segment_end_pad) for t in segs])
 
-  threshstr = str(args.threshold[i]).replace('.', '_')
-  flag_name = '%s:DCH-%s_%s:1' % (args.ifo,allchannels[0], threshstr)
+  threshstr = str(threshold).replace('.', '_')
+  flag_name = '%s:DCH-%s_%s:1' % (args.ifo,args.main_channel, threshstr)
 
   flag = DataQualityFlag(flag_name, active=zip(start_time,end_time), known=[[args.gpsstart,args.gpsend]])
-  flag_segments[args.threshold[i]] = flag
+  flag_segments[threshold] = flag
 
 
