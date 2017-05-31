@@ -28,6 +28,7 @@ import matplotlib
 matplotlib.use('Agg')
 from glue import segments
 from trigfind import find_trigger_files
+from gwpy.table import (Table, EventTable)
 from gwpy.timeseries import TimeSeriesDict
 from gwpy.segments import (DataQualityFlag, DataQualityDict,
                             Segment, SegmentList)
