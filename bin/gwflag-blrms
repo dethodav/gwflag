@@ -1,0 +1,158 @@
+#!/usr/bin/env python
+## coding=utf-8
+## Copyright (C) Derek Davis (2017)
+##
+## This file is part of gwFlag.
+##
+## gwFlagis free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+##gwFlagis distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with gwFlag.  If not, see <http://www.gnu.org/licenses/>.
+
+import os.path
+import re
+import warnings
+from StringIO import StringIO
+
+from gwdetchar import (cli, const, scattering, __version__)
+
+import matplotlib
+matplotlib.use('Agg')
+from glue import segments
+from trigfind import find_trigger_files
+from gwpy.table import (Table, EventTable)
+from gwpy.timeseries import TimeSeriesDict
+from gwpy.segments import (DataQualityFlag, DataQualityDict,
+                            Segment, SegmentList)
+from gwpy.utils import gprint
+import numpy
+
+import ConfigParser
+import sys
+import subprocess
+
+from gwflag import (core,vetconfig)
+from gwflag import cli as cliflag
+
+parser = cli.create_parser(description=__doc__)
+cli.add_gps_start_stop_arguments(parser)
+cli.add_ifo_option(parser)
+cliflag.add_channel_option(parser)
+cliflag.add_state_option(parser)
+cliflag.add_threshold_arguments(parser)
+cliflag.add_padding_arguments(parser)
+parser.add_argument('-lp', '--lowpass', type=int,
+                    help='lowpass threshold')
+parser.add_argument('-hp', '--highpass', type=int,
+                    help='highpass threshold')
+parser.add_argument('--rms', type=float,
+                    help='Seconds in each root-mean-square calculation')
+parser.add_argument('-o', '--output-dir', type=os.path.abspath,
+                    default=os.curdir,
+                    help='output directory for analysis, default: %(default)s')
+parser.add_argument('--vet', action='store_true', default=False,
+                    help='run VET analysis, default: %(default)s')
+parser.add_argument('-v', '--verbose', action='store_true', default=False,
+                    help='print verbose output, default: %(default)s')
+args = parser.parse_args()
+
+if len(args.threshold) == 1:
+    try:  # try converting to GPS
+        args.threshold = [float(args.threshold[0])]
+    except (TypeError, ValueError):  # otherwise read as file
+        import numpy
+        args.threshold = numpy.loadtxt(args.threshold[0], dtype=float)
+else:
+    args.threshold = map(float, args.threshold)
+
+chanstr = str(args.main_channel).replace(':', '_')
+gpsstr = '%s-%s' % (int(args.gpsstart), int(args.gpsend-args.gpsstart))
+
+
+for k in range(0,len(args.threshold)):
+    if args.threshold[k].is_integer():
+        args.threshold[k] = int(args.threshold[k])
+
+if not os.path.isdir(args.output_dir):
+    os.makedirs(args.output_dir)
+os.chdir(args.output_dir)
+
+
+segxml = '%s-FLAG_SEGMENTS-%s.xml.gz' % (chanstr, gpsstr)
+xmlpath = os.path.join(args.output_dir,segxml)
+#=====================================================
+
+statea = ImportSegments(args)
+
+if args.verbose:
+    gprint("Reading all data... 0/%d segments read" % len(statea), end='\r')
+alldata = []
+for i, seg in enumerate(statea):
+    alldata.append(
+        TimeSeriesDict.get(allchannels, seg[0], seg[1], nproc=args.nproc,
+                           frametype=args.frametype))
+    if args.verbose:
+        gprint("Reading all data... %d/%d segments read"
+           % (i+1, len(statea)), end='\r')
+if args.verbose:
+    gprint("Reading all data... {0}/{0} segments read".format(len(statea)))
+
+flag_segments = DataQualityDict((m, []) for m in args.threshold)
+
+if args.verbose:
+    gprint("Checking all thresholds... 0/%d thresholds checked" % len(args.threshold), end='\r')
+
+for i  in range(0,len(args.threshold)):
+    for j in alldata:
+        data = j[allchannels[0]]
+        if args.lowpass != None and args.highpass != None:
+            data =  data.bandpass(args.highpass,args.lowpass)
+        elif args.highpass != None:
+                data =  data.highpass(args.highpass)
+        elif args.lowpass != None:
+            data =  data.highpass(args.lowpass)
+        if args.rms != None:
+            data = data.rms(args.rms)
+        all_time = numpy.linspace(int(data.epoch.value), int((data.epoch.value 
+                    + len(data.value)*data.dt.value)),num=len(data.value))
+        for z in range(0,len(all_time)):
+          if (data.value[z] > (args.threshold[i])*10**(int(args.threshold_multiplier))) :
+             time.append(all_time[z])
+
+    core.FlagWrite(args,time,args.threshold[i],flag_segments)
+    if args.verbose:
+           gprint("Checking all thresholds... %d/%d thresholds checked"
+              % (i+1, len(args.threshold)), end='\r')
+if args.verbose:
+    gprint("Checking all thresholds... {0}/{0} thresholds checked".format(len(args.threshold)))
+
+print('writing xml')
+
+flag_segments.write(segxml,overwrite=True)
+
+#======== .ini file =======================
+
+iniparser = vetconfig.configinit(args.threshold,args.ifo,args.main_channel,
+                                 xmlpath,snr=['8','20','100'])
+flagini = '%s-VET_CONFIG-%s.ini' % (chanstr, gpsstr)
+with open(flagini, 'w') as f:
+    iniparser.write(f)
+
+#======== gwsumm =======================
+
+gwsumm_args = ['gw_summary',
+               'gps', str(args.gpsstart), str(args.gpsend),
+               '-f', str(flagini),
+               '-o', str(args.output_dir)]
+if args.verbose:
+    gwsumm_args.append('--verbose')
+if args.vet:
+    p = subprocess.Popen(gwsumm_args)
