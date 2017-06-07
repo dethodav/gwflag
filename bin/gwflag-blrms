@@ -84,6 +84,8 @@ for k in range(0,len(args.threshold)):
     if args.threshold[k].is_integer():
         args.threshold[k] = int(args.threshold[k])
 
+args.thresholds = sorted(args.threshold)
+
 if not os.path.isdir(args.output_dir):
     os.makedirs(args.output_dir)
 os.chdir(args.output_dir)
@@ -112,7 +114,6 @@ flag_segments = DataQualityDict((m, []) for m in args.threshold)
 
 if args.verbose:
     gprint("Checking all thresholds... 0/%d thresholds checked" % len(args.threshold), end='\r')
-
 for i  in range(0,len(args.threshold)):
     time = []
     for j in alldata:
@@ -130,6 +131,8 @@ for i  in range(0,len(args.threshold)):
         for z in range(0,len(all_time)):
           if (data.value[z] > (args.threshold[i])*10**(int(args.threshold_multiplier))) :
              time.append(all_time[z])
+        if time == []:
+            alldata.remove(j)
 
     core.FlagWrite(args,time,args.threshold[i],flag_segments)
     if args.verbose:
