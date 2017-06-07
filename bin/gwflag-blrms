@@ -23,6 +23,7 @@ import warnings
 from StringIO import StringIO
 
 from gwdetchar import (cli, const, scattering, __version__)
+from gwsumm.data import get_timeseries_dict
 
 import matplotlib
 matplotlib.use('Agg')
@@ -62,6 +63,8 @@ parser.add_argument('--vet', action='store_true', default=False,
                     help='run VET analysis, default: %(default)s')
 parser.add_argument('-v', '--verbose', action='store_true', default=False,
                     help='print verbose output, default: %(default)s')
+cli.add_frametype_option(parser, default='%s_R' % const.IFO)
+cli.add_nproc_option(parser)
 args = parser.parse_args()
 
 if len(args.threshold) == 1:
@@ -90,14 +93,14 @@ segxml = '%s-FLAG_SEGMENTS-%s.xml.gz' % (chanstr, gpsstr)
 xmlpath = os.path.join(args.output_dir,segxml)
 #=====================================================
 
-statea = ImportSegments(args)
+statea = core.ImportSegments(args)
 
 if args.verbose:
     gprint("Reading all data... 0/%d segments read" % len(statea), end='\r')
 alldata = []
 for i, seg in enumerate(statea):
     alldata.append(
-        TimeSeriesDict.get(allchannels, seg[0], seg[1], nproc=args.nproc,
+        TimeSeriesDict.get([args.main_channel], seg[0], seg[1], nproc=args.nproc,
                            frametype=args.frametype))
     if args.verbose:
         gprint("Reading all data... %d/%d segments read"
@@ -111,8 +114,9 @@ if args.verbose:
     gprint("Checking all thresholds... 0/%d thresholds checked" % len(args.threshold), end='\r')
 
 for i  in range(0,len(args.threshold)):
+    time = []
     for j in alldata:
-        data = j[allchannels[0]]
+        data = j[args.main_channel]
         if args.lowpass != None and args.highpass != None:
             data =  data.bandpass(args.highpass,args.lowpass)
         elif args.highpass != None:
